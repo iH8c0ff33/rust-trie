@@ -31,6 +31,7 @@ impl PartialEq for Trie {
 
 #[cfg(test)]
 mod tests {
+    use super::Trie::{Leaf, Node};
     use super::*;
 
     #[test]
@@ -38,19 +39,38 @@ mod tests {
         let trie = Trie::new("hello".chars().collect());
         assert_eq!(
             trie,
-            Trie::Node(
+            Node(
                 'h',
                 false,
-                vec![Trie::Node(
+                vec![Node(
                     'e',
                     false,
-                    vec![Trie::Node(
-                        'l',
-                        false,
-                        vec![Trie::Node('l', false, vec![Trie::Leaf('o')])]
-                    )]
+                    vec![Node('l', false, vec![Node('l', false, vec![Leaf('o')])])]
                 )]
             )
         )
+    }
+
+    #[test]
+    fn trie_partial_eq() {
+        let a = Node(
+            'd',
+            false,
+            vec![
+                Node('e', false, vec![Leaf('w')]),
+                Node('a', false, vec![Leaf('w'), Leaf('t')]),
+            ],
+        );
+
+        let b = Node(
+            'd',
+            false,
+            vec![
+                Node('e', false, vec![Leaf('w')]),
+                Node('a', false, vec![Leaf('w'), Leaf('t')]),
+            ],
+        );
+
+        assert_eq!(a, b);
     }
 }
