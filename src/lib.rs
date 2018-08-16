@@ -55,6 +55,43 @@ impl Trie {
             },
         }
     }
+
+    pub fn contains(&self, word: Vec<char>) -> bool {
+        if let Some((head, tail)) = word.split_first() {
+            match tail.len() {
+                0 => if let Trie::Leaf(c) = self {
+                    c == head
+                } else {
+                    false
+                },
+                _ => if let Trie::Node(c, _, children) = self {
+                    if c == head {
+                        if let Some(child) = children.find_contains_char(&tail[0]) {
+                            child.contains(tail.to_vec())
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                },
+            }
+        } else {
+            false
+        }
+    }
+}
+
+pub trait FindChild {
+    fn find_contains_char(&self, c: &char) -> Option<&Trie>;
+}
+
+impl FindChild for Vec<Trie> {
+    fn find_contains_char(&self, c: &char) -> Option<&Trie> {
+        self.iter().find(|child| child.first_char() == *c)
+    }
 }
 
 impl PartialEq for Trie {
@@ -121,6 +158,31 @@ mod tests {
                 ],
             )
         )
+    }
+
+    #[test]
+    fn trie_find_child_containing_char() {
+        let mut trie = Trie::new("daw".chars().collect());
+        trie.insert("dat".chars().collect()).unwrap();
+        trie.insert("dew".chars().collect()).unwrap();
+
+        if let Node(_, _, children) = &trie {
+            assert_eq!(
+                *children.find_contains_char(&'a').unwrap(),
+                Node('a', false, vec![Leaf('w'), Leaf('t')])
+            );
+            assert!(children.find_contains_char(&'b').is_none());
+        };
+    }
+
+    #[test]
+    fn trie_contains_word() {
+        let mut trie = Trie::new("daw".chars().collect());
+        trie.insert("dat".chars().collect()).unwrap();
+        trie.insert("dew".chars().collect()).unwrap();
+
+        assert!(trie.contains("dew".chars().collect()));
+        assert!(!trie.contains("dan".chars().collect()));
     }
 
     #[test]
