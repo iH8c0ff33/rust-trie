@@ -82,6 +82,34 @@ impl Trie {
             false
         }
     }
+
+    pub fn find_suffixes(&self, prefix: Vec<char>) -> Option<&Vec<Self>> {
+        if let Some((head, tail)) = prefix.split_first() {
+            match tail.len() {
+                0 => match self {
+                    Trie::Leaf(_) => None,
+                    Trie::Node(c, _, children) => if c == head {
+                        Some(children)
+                    } else {
+                        None
+                    },
+                },
+                _ => if let Trie::Node(c, _, children) = self {
+                    if c == head {
+                        children
+                            .find_contains_char(&tail[0])?
+                            .find_suffixes(tail.to_vec())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                },
+            }
+        } else {
+            None
+        }
+    }
 }
 
 pub trait FindChild {
@@ -183,6 +211,18 @@ mod tests {
 
         assert!(trie.contains("dew".chars().collect()));
         assert!(!trie.contains("dan".chars().collect()));
+    }
+
+    #[test]
+    fn trie_find_suffixes() {
+        let mut trie = Trie::new("daw".chars().collect());
+        trie.insert("dat".chars().collect()).unwrap();
+        trie.insert("dew".chars().collect()).unwrap();
+
+        assert_eq!(
+            *trie.find_suffixes("da".chars().collect()).unwrap(),
+            vec![Leaf('w'), Leaf('t')]
+        )
     }
 
     #[test]
