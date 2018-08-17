@@ -13,35 +13,27 @@ impl Trie {
         let (head, tail) = word
             .split_first()
             .expect("trie_insert can't be called with empty words");
-        if head != self.value() {
+        if *head != self.key {
             return None;
         }
 
         if tail.len() == 0 {
-            match self {
-                Trie::Leaf(_) => Some(false),
-                Trie::Node(_, boundary, _) => if *boundary {
-                    Some(false)
-                } else {
-                    *boundary = true;
-                    Some(true)
-                },
+            if self.boundary {
+                Some(false)
+            } else {
+                self.boundary = true;
+                Some(true)
             }
         } else {
-            match self {
-                Trie::Leaf(_) => {
-                    *self = Trie::Node(*head, true, vec![Trie::from_word(tail.to_vec())]);
-                    Some(true)
-                }
-                Trie::Node(_, _, children) => if let Some(position) = children
-                    .iter_mut()
-                    .position(|child| child.value() == &tail[0])
-                {
-                    children[position].insert(tail.to_vec())
-                } else {
-                    children.push(Trie::from_word(tail.to_vec()));
-                    Some(true)
-                },
+            if let Some(position) = self
+                .children
+                .iter_mut()
+                .position(|child| child.key == tail[0])
+            {
+                self.children[position].insert(tail.to_vec())
+            } else {
+                self.children.push(Trie::from_word(tail.to_vec()));
+                Some(true)
             }
         }
     }
@@ -54,23 +46,17 @@ macro_rules! get_fn {
         iter_fn: $iter:ident
     ) => {
         fn $name<'a>(trie: $trie_type, prefix: Vec<char>) -> Option<$trie_type> {
-            if let Some((head, tail)) = prefix.split_first() {
-                if head == trie.value() {
-                    if tail.len() == 0 {
-                        return Some(trie);
-                    }
+            let (head, tail) = prefix
+                .split_first()
+                .expect("trie_get can't be called with empty prefix");
 
-                    if let Trie::Node(_, _, children) = trie {
-                        if let Some(child) =
-                            children.$iter().find(|child| child.value() == &tail[0])
-                        {
-                            $name(child, tail.to_vec())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
+            if *head == trie.key {
+                if tail.len() == 0 {
+                    return Some(trie);
+                }
+
+                if let Some(child) = trie.children.$iter().find(|child| child.key == tail[0]) {
+                    $name(child, tail.to_vec())
                 } else {
                     None
                 }
@@ -87,64 +73,91 @@ get_fn!(name: trie_get_mut, trie_type: &mut Trie, iter_fn: iter_mut);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Trie::{Leaf, Node};
 
     #[test]
     fn trie_get() {
-        let trie = Node(
-            'a',
-            false,
-            vec![
-                Leaf('b'),
-                Node(
-                    'c',
-                    false,
-                    vec![Leaf('d'), Node('e', false, vec![Leaf('f'), Leaf('g')])],
-                ),
+        let trie = Trie {
+            key: 'a',
+            boundary: false,
+            children: vec![
+                Trie::empty('b'),
+                Trie {
+                    key: 'c',
+                    boundary: false,
+                    children: vec![
+                        Trie::empty('d'),
+                        Trie {
+                            key: 'e',
+                            boundary: false,
+                            children: vec![Trie::empty('f'), Trie::empty('g')],
+                        },
+                    ],
+                },
             ],
-        );
+        };
 
         assert_eq!(
             *trie.get(vec!['a', 'c']).unwrap(),
-            Node(
-                'c',
-                false,
-                vec![Leaf('d'), Node('e', false, vec![Leaf('f'), Leaf('g')])],
-            )
+            Trie {
+                key: 'c',
+                boundary: false,
+                children: vec![
+                    Trie::empty('d'),
+                    Trie {
+                        key: 'e',
+                        boundary: false,
+                        children: vec![Trie::empty('f'), Trie::empty('g')],
+                    },
+                ],
+            }
         )
     }
 
     #[test]
     fn trie_get_mut() {
-        let mut trie = Node(
-            'a',
-            false,
-            vec![
-                Leaf('b'),
-                Node(
-                    'c',
-                    false,
-                    vec![Leaf('d'), Node('e', false, vec![Leaf('f'), Leaf('g')])],
-                ),
+        let mut trie = Trie {
+            key: 'a',
+            boundary: false,
+            children: vec![
+                Trie::empty('b'),
+                Trie {
+                    key: 'c',
+                    boundary: false,
+                    children: vec![
+                        Trie::empty('d'),
+                        Trie {
+                            key: 'e',
+                            boundary: false,
+                            children: vec![Trie::empty('f'), Trie::empty('g')],
+                        },
+                    ],
+                },
             ],
-        );
+        };
 
-        *trie.get_mut(vec!['a', 'c', 'e']).unwrap().value_mut() = 'v';
+        trie.get_mut(vec!['a', 'c', 'e']).unwrap().key = 'v';
 
         assert_eq!(
             trie,
-            Node(
-                'a',
-                false,
-                vec![
-                    Leaf('b'),
-                    Node(
-                        'c',
-                        false,
-                        vec![Leaf('d'), Node('v', false, vec![Leaf('f'), Leaf('g')])],
-                    ),
+            Trie {
+                key: 'a',
+                boundary: false,
+                children: vec![
+                    Trie::empty('b'),
+                    Trie {
+                        key: 'c',
+                        boundary: false,
+                        children: vec![
+                            Trie::empty('d'),
+                            Trie {
+                                key: 'v',
+                                boundary: false,
+                                children: vec![Trie::empty('f'), Trie::empty('g')],
+                            },
+                        ],
+                    },
                 ],
-            )
+            }
         )
     }
 
@@ -157,18 +170,25 @@ mod tests {
         assert!(trie.insert(vec!['a', 'c', 'e', 'g']).unwrap());
         assert_eq!(
             trie,
-            Node(
-                'a',
-                false,
-                vec![
-                    Node(
-                        'c',
-                        false,
-                        vec![Node('e', true, vec![Leaf('f'), Leaf('g')]), Leaf('d')],
-                    ),
-                    Leaf('b'),
+            Trie {
+                key: 'a',
+                boundary: false,
+                children: vec![
+                    Trie {
+                        key: 'c',
+                        boundary: false,
+                        children: vec![
+                            Trie {
+                                key: 'e',
+                                boundary: true,
+                                children: vec![Trie::empty('f'), Trie::empty('g')],
+                            },
+                            Trie::empty('d'),
+                        ],
+                    },
+                    Trie::empty('b'),
                 ],
-            )
+            }
         )
     }
 }

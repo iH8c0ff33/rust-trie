@@ -1,8 +1,9 @@
 pub mod trie_node;
 pub mod trie_traversal;
 
-#[derive(Debug)]
-pub enum Trie {
-    Leaf(char),
-    Node(char, bool, Vec<Trie>),
+#[derive(Debug,PartialEq)]
+pub struct Trie {
+    pub key: char,
+    pub boundary: bool,
+    children: Vec<Trie>,
 }
