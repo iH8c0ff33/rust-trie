@@ -37,6 +37,10 @@ impl Trie {
             }
         }
     }
+
+    pub fn remove(&mut self, word: Vec<char>) -> bool {
+        trie_remove(self, true, word)
+    }
 }
 
 macro_rules! get_fn {
@@ -69,6 +73,32 @@ macro_rules! get_fn {
 
 get_fn!(name: trie_get, trie_type: &Trie, iter_fn: iter);
 get_fn!(name: trie_get_mut, trie_type: &mut Trie, iter_fn: iter_mut);
+
+fn trie_remove(trie: &mut Trie, first: bool, word: Vec<char>) -> bool {
+    let (last, rest) = word
+        .split_last()
+        .expect("trie_remove can't be called with empty word");
+
+    if let Some(parent) = trie.get_mut(rest.to_vec()) {
+        if let Some(pos) = parent.children.iter().position(|child| child.key == *last) {
+            if parent.children[pos].children.len() != 0 {
+                if first {
+                    parent.children[pos].boundary = false;
+                }
+
+                return true;
+            } else {
+                parent.children.remove(pos);
+            }
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    trie_remove(trie, false, rest.to_vec())
+}
 
 #[cfg(test)]
 mod tests {
@@ -190,5 +220,76 @@ mod tests {
                 ],
             }
         )
+    }
+
+    #[test]
+    fn trie_remove() {
+        let mut trie = Trie {
+            key: 'a',
+            boundary: false,
+            children: vec![
+                Trie {
+                    key: 'c',
+                    boundary: false,
+                    children: vec![
+                        Trie {
+                            key: 'e',
+                            boundary: true,
+                            children: vec![Trie::empty('f'), Trie::empty('g')],
+                        },
+                        Trie::empty('d'),
+                    ],
+                },
+                Trie::empty('b'),
+            ],
+        };
+        trie.remove(vec!['a', 'c', 'e', 'g']);
+
+        assert_eq!(
+            trie,
+            Trie {
+                key: 'a',
+                boundary: false,
+                children: vec![
+                    Trie {
+                        key: 'c',
+                        boundary: false,
+                        children: vec![
+                            Trie {
+                                key: 'e',
+                                boundary: true,
+                                children: vec![Trie::empty('f')],
+                            },
+                            Trie::empty('d'),
+                        ],
+                    },
+                    Trie::empty('b'),
+                ],
+            }
+        );
+
+        trie.remove(vec!['a','c','e']);
+        assert_eq!(
+            trie,
+            Trie {
+                key: 'a',
+                boundary: false,
+                children: vec![
+                    Trie {
+                        key: 'c',
+                        boundary: false,
+                        children: vec![
+                            Trie {
+                                key: 'e',
+                                boundary: false,
+                                children: vec![Trie::empty('f')],
+                            },
+                            Trie::empty('d'),
+                        ],
+                    },
+                    Trie::empty('b'),
+                ],
+            }
+        );
     }
 }
